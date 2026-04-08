@@ -437,8 +437,8 @@ function ResumenTab({income,expenses,loans,debts,goals,payments,capital,monthlyH
         <div style={{color:t.textTertiary,fontSize:"0.65rem",marginTop:"0.15rem"}}>capital disponible</div>
       </div>
 
-      {/* STATS COMPACTOS: 3 en fila */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"0.45rem"}}>
+      {/* STATS COMPACTOS: 2 en fila */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.45rem"}}>
         <Card t={t} style={{padding:"0.55rem 0.6rem"}}>
           <Lbl t={t}>Ingresos</Lbl>
           <div style={{fontSize:"0.88rem",fontWeight:700,color:t.green}}>{eur(totalIncome+loanIncome)}</div>
@@ -448,11 +448,6 @@ function ResumenTab({income,expenses,loans,debts,goals,payments,capital,monthlyH
           <Lbl t={t}>Gastos</Lbl>
           <div style={{fontSize:"0.88rem",fontWeight:700,color:t.red}}>{eur(totalExp)}</div>
           <div style={{fontSize:"0.58rem",color:t.textTertiary,marginTop:"0.1rem"}}>/mes</div>
-        </Card>
-        <Card t={t} style={{padding:"0.55rem 0.6rem"}}>
-          <Lbl t={t}>Patrimonio</Lbl>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:patrimonioNeto>=0?"#00B894":"#FF6B6B"}}>{patrimonioNeto>=0?"+":""}{eur(patrimonioNeto)}</div>
-          <div style={{fontSize:"0.58rem",color:t.textTertiary,marginTop:"0.1rem"}}>neto</div>
         </Card>
       </div>
 
