@@ -246,8 +246,16 @@ function PinScreen({onUnlock,t}) {
     setDigits(next);
     if(next.length===4){
       if(next===PIN_CORRECT){
-        localStorage.setItem("fz_pin_v1","ok");
-        onUnlock();
+        supabase.auth.signInWithPassword({email:"thewolf536@gmail.com",password:"ElGuesoPara27YT"})
+          .then(({error})=>{
+            if(!error){
+              localStorage.setItem("fz_pin_v1","ok");
+              onUnlock();
+            } else {
+              setShake(true);
+              setTimeout(()=>{setDigits("");setShake(false);},600);
+            }
+          });
       } else {
         setShake(true);
         setTimeout(()=>{setDigits("");setShake(false);},600);
@@ -2031,6 +2039,17 @@ export default function App() {
     }
     setLastSnapMk(currentMk);
   }, []); // eslint-disable-line
+
+  // ── Supabase: restaurar sesión si ya estaba desbloqueado ──
+  useEffect(()=>{
+    if(unlocked){
+      supabase.auth.getSession().then(({data:{session}})=>{
+        if(!session){
+          supabase.auth.signInWithPassword({email:"thewolf536@gmail.com",password:"ElGuesoPara27YT"});
+        }
+      });
+    }
+  },[unlocked]); // eslint-disable-line
 
   // ── Supabase: pull on mount ──
   useEffect(()=>{
