@@ -1,17 +1,28 @@
-const SYNC_ROW = "main";
+const OWNER_ROW = "main";
+
+async function getUserId(pin, env) {
+  if (pin === env.PIN_SECRET) return OWNER_ROW;
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/fz_users?code=eq.${encodeURIComponent(pin)}&select=code`,
+    { headers: sbHeaders(env.SUPABASE_SERVICE_KEY) }
+  );
+  const rows = await res.json();
+  if (Array.isArray(rows) && rows.length > 0) return rows[0].code;
+  return null;
+}
 
 export async function onRequestPost(context) {
-  const { PIN_SECRET, SUPABASE_URL, SUPABASE_SERVICE_KEY } = context.env;
+  const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = context.env;
 
   let body;
   try { body = await context.request.json(); }
   catch { return resp({ error: "invalid body" }, 400); }
 
   const { action, pin, payload } = body;
+  if (!pin) return resp({ error: "unauthorized" }, 401);
 
-  if (!pin || pin !== PIN_SECRET) {
-    return resp({ error: "unauthorized" }, 401);
-  }
+  const userId = await getUserId(pin, context.env);
+  if (!userId) return resp({ error: "unauthorized" }, 401);
 
   if (action === "validate") {
     return resp({ ok: true });
@@ -19,7 +30,7 @@ export async function onRequestPost(context) {
 
   if (action === "pull") {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/finanzas_data?id=eq.${SYNC_ROW}&select=payload,updated_at`,
+      `${SUPABASE_URL}/rest/v1/finanzas_data?id=eq.${encodeURIComponent(userId)}&select=payload,updated_at`,
       { headers: sbHeaders(SUPABASE_SERVICE_KEY) }
     );
     const rows = await res.json();
@@ -33,7 +44,7 @@ export async function onRequestPost(context) {
         ...sbHeaders(SUPABASE_SERVICE_KEY),
         "Prefer": "resolution=merge-duplicates,return=minimal"
       },
-      body: JSON.stringify({ id: SYNC_ROW, payload, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ id: userId, payload, updated_at: new Date().toISOString() })
     });
     return resp({ ok: true });
   }

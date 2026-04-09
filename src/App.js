@@ -232,30 +232,34 @@ function PinScreen({onUnlock,t}) {
   const [digits,setDigits]=useState("");
   const [shake,setShake]=useState(false);
   const [loading,setLoading]=useState(false);
+  const [codeMode,setCodeMode]=useState(false);
+  const [code,setCode]=useState("");
+
+  const submit=(pin)=>{
+    setLoading(true);
+    fetch("/api/sync",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"validate",pin})
+    }).then(r=>{
+      if(r.ok){
+        sessionStorage.setItem("fz_pin_session",pin);
+        onUnlock(pin);
+      } else {
+        setShake(true);
+        setTimeout(()=>{setDigits("");setCode("");setShake(false);setLoading(false);},600);
+      }
+    }).catch(()=>{
+      setShake(true);
+      setTimeout(()=>{setDigits("");setCode("");setShake(false);setLoading(false);},600);
+    });
+  };
 
   const handleDigit=(d)=>{
     if(digits.length>=4||loading) return;
     const next=digits+d;
     setDigits(next);
-    if(next.length===4){
-      setLoading(true);
-      fetch("/api/sync",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({action:"validate",pin:next})
-      }).then(r=>{
-        if(r.ok){
-          sessionStorage.setItem("fz_pin_session",next);
-          onUnlock(next);
-        } else {
-          setShake(true);
-          setTimeout(()=>{setDigits("");setShake(false);setLoading(false);},600);
-        }
-      }).catch(()=>{
-        setShake(true);
-        setTimeout(()=>{setDigits("");setShake(false);setLoading(false);},600);
-      });
-    }
+    if(next.length===4) submit(next);
   };
   const del=()=>setDigits(p=>p.slice(0,-1));
 
@@ -263,22 +267,45 @@ function PinScreen({onUnlock,t}) {
     <div style={{minHeight:"100vh",background:t.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"2rem",fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif"}}>
       <div style={{textAlign:"center"}}>
         <div style={{fontSize:"1.5rem",fontWeight:800,color:t.text,letterSpacing:"-0.03em"}}>Finanzas</div>
-        <div style={{fontSize:"0.7rem",color:t.textTertiary,marginTop:"0.2rem"}}>Introduce tu PIN</div>
+        <div style={{fontSize:"0.7rem",color:t.textTertiary,marginTop:"0.2rem"}}>{codeMode?"Introduce tu código de acceso":"Introduce tu PIN"}</div>
       </div>
-      <div style={{display:"flex",gap:"1rem",transition:"transform 0.1s",transform:shake?"translateX(0)":"none",animation:shake?"shake 0.4s ease":"none"}}>
-        {[0,1,2,3].map(i=>(
-          <div key={i} style={{width:14,height:14,borderRadius:"50%",border:`2px solid ${t.border}`,background:digits.length>i?t.text:"transparent",transition:"background 0.15s"}}/>
-        ))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.75rem"}}>
-        {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((k,i)=>(
-          <button key={i} onClick={()=>k==="⌫"?del():k!==""&&handleDigit(String(k))}
-            disabled={k===""}
-            style={{width:70,height:70,borderRadius:"50%",border:`1px solid ${t.border}`,background:k===""?"transparent":t.surface,color:t.text,fontSize:k==="⌫"?"1.2rem":"1.4rem",fontWeight:600,cursor:k===""?"default":"pointer",fontFamily:"inherit",opacity:k===""?0:1}}>
-            {k}
-          </button>
-        ))}
-      </div>
+      {codeMode?(
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"1rem",animation:shake?"shake 0.4s ease":"none"}}>
+          <input
+            autoFocus
+            value={code}
+            onChange={e=>setCode(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&code.length>0&&submit(code)}
+            placeholder="Código"
+            disabled={loading}
+            style={{padding:"0.75rem 1.2rem",fontSize:"1.1rem",borderRadius:12,border:`1px solid ${t.border}`,background:t.surface,color:t.text,outline:"none",textAlign:"center",width:200,fontFamily:"inherit",letterSpacing:"0.05em"}}
+          />
+          <button
+            onClick={()=>submit(code)}
+            disabled={code.length===0||loading}
+            style={{padding:"0.65rem 2rem",borderRadius:99,border:"none",background:t.text,color:t.bg,fontSize:"0.9rem",fontWeight:700,cursor:"pointer",opacity:code.length===0||loading?0.4:1,fontFamily:"inherit"}}
+          >Entrar →</button>
+          <button onClick={()=>{setCodeMode(false);setCode("");}} style={{background:"none",border:"none",color:t.textTertiary,fontSize:"0.7rem",cursor:"pointer",fontFamily:"inherit"}}>← Volver al PIN</button>
+        </div>
+      ):(
+        <>
+          <div style={{display:"flex",gap:"1rem",transition:"transform 0.1s",transform:shake?"translateX(0)":"none",animation:shake?"shake 0.4s ease":"none"}}>
+            {[0,1,2,3].map(i=>(
+              <div key={i} style={{width:14,height:14,borderRadius:"50%",border:`2px solid ${t.border}`,background:digits.length>i?t.text:"transparent",transition:"background 0.15s"}}/>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.75rem"}}>
+            {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((k,i)=>(
+              <button key={i} onClick={()=>k==="⌫"?del():k!==""&&handleDigit(String(k))}
+                disabled={k===""}
+                style={{width:70,height:70,borderRadius:"50%",border:`1px solid ${t.border}`,background:k===""?"transparent":t.surface,color:t.text,fontSize:k==="⌫"?"1.2rem":"1.4rem",fontWeight:600,cursor:k===""?"default":"pointer",fontFamily:"inherit",opacity:k===""?0:1}}>
+                {k}
+              </button>
+            ))}
+          </div>
+          <button onClick={()=>setCodeMode(true)} style={{background:"none",border:"none",color:t.textTertiary,fontSize:"0.7rem",cursor:"pointer",fontFamily:"inherit",marginTop:"-0.5rem"}}>Tengo un código de acceso</button>
+        </>
+      )}
       <style>{`@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}`}</style>
     </div>
   );
