@@ -1,11 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-// ─── SUPABASE ─────────────────────────────────────────────────────────────────
-const SB_URL = "https://zzidtjejzuypgiewwmva.supabase.co";
-const SB_KEY = "sb_publishable_hp6Q2GdIDBDEXm2-B4et5Q_mEFpEdoJ";
-const supabase = createClient(SB_URL, SB_KEY);
-const SYNC_ROW = "main";
 
 // ─── PERSISTENCE ──────────────────────────────────────────────────────────────
 function useLS(key, def) {
@@ -235,31 +228,33 @@ function InteractiveDonut({slices,size=150,t,subtitle}) {
 }
 
 // ─── PIN SCREEN ───────────────────────────────────────────────────────────────
-const PIN_CORRECT = "5129";
 function PinScreen({onUnlock,t}) {
   const [digits,setDigits]=useState("");
   const [shake,setShake]=useState(false);
+  const [loading,setLoading]=useState(false);
 
   const handleDigit=(d)=>{
-    if(digits.length>=4) return;
+    if(digits.length>=4||loading) return;
     const next=digits+d;
     setDigits(next);
     if(next.length===4){
-      if(next===PIN_CORRECT){
-        supabase.auth.signInWithPassword({email:"thewolf536@gmail.com",password:"ElGuesoPara27YT"})
-          .then(({error})=>{
-            if(!error){
-              localStorage.setItem("fz_pin_v1","ok");
-              onUnlock();
-            } else {
-              setShake(true);
-              setTimeout(()=>{setDigits("");setShake(false);},600);
-            }
-          });
-      } else {
+      setLoading(true);
+      fetch("/api/sync",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action:"validate",pin:next})
+      }).then(r=>{
+        if(r.ok){
+          sessionStorage.setItem("fz_pin_session",next);
+          onUnlock(next);
+        } else {
+          setShake(true);
+          setTimeout(()=>{setDigits("");setShake(false);setLoading(false);},600);
+        }
+      }).catch(()=>{
         setShake(true);
-        setTimeout(()=>{setDigits("");setShake(false);},600);
-      }
+        setTimeout(()=>{setDigits("");setShake(false);setLoading(false);},600);
+      });
     }
   };
   const del=()=>setDigits(p=>p.slice(0,-1));
@@ -1997,7 +1992,8 @@ function DesktopLayout({tab,setTab,income,setIncome,expenses,setExpenses,debts,s
 const TABS=[{id:"resumen",label:"Resumen"},{id:"ingresos",label:"Ingresos"},{id:"gastos",label:"Gastos"},{id:"deudas",label:"Deudas"},{id:"plan",label:"Plan"}];
 
 export default function App() {
-  const [unlocked,      setUnlocked]     = useState(()=>localStorage.getItem("fz_pin_v1")==="ok");
+  const [pin,           setPin]          = useState(()=>sessionStorage.getItem("fz_pin_session")||"");
+  const [unlocked,      setUnlocked]     = useState(()=>!!sessionStorage.getItem("fz_pin_session"));
   const [darkMode,      setDarkMode]     = useLS("fz_dark_v1",    true);
   const [tab,           setTab]          = useState("resumen");
   const [income,        setIncome]       = useLS("fz_income_v4",  DEFAULT_INCOME);
@@ -2040,26 +2036,16 @@ export default function App() {
     setLastSnapMk(currentMk);
   }, []); // eslint-disable-line
 
-  // ── Supabase: restaurar sesión si ya estaba desbloqueado ──
+  // ── API: pull on unlock ──
   useEffect(()=>{
-    if(unlocked){
-      supabase.auth.getSession().then(({data:{session}})=>{
-        if(!session){
-          supabase.auth.signInWithPassword({email:"thewolf536@gmail.com",password:"ElGuesoPara27YT"});
-        }
-      });
-    }
-  },[unlocked]); // eslint-disable-line
-
-  // ── Supabase: pull on mount ──
-  useEffect(()=>{
+    if(!pin) return;
     (async()=>{
       try{
-        const {data,error}=await supabase.from("finanzas_data").select("payload,updated_at").eq("id",SYNC_ROW).single();
-        if(error||!data) return;
+        const res=await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"pull",pin})});
+        if(!res.ok) return;
+        const data=await res.json();
+        if(!data||!data.payload) return;
         const remote=data.payload;
-        if(!remote) return;
-        // Use remote data to populate state (remote wins on mount)
         if(remote.income)        setIncome(remote.income);
         if(remote.expenses)      setExpenses(remote.expenses);
         if(remote.debts)         setDebts(remote.debts);
@@ -2077,25 +2063,26 @@ export default function App() {
         if(remote.darkMode!=null)setDarkMode(remote.darkMode);
       }catch(e){}
     })();
-  },[]); // eslint-disable-line
+  },[pin]); // eslint-disable-line
 
-  // ── Supabase: push on change (debounced 3s) ──
+  // ── API: push on change (debounced 3s) ──
   useEffect(()=>{
+    if(!pin) return;
     if(syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current=setTimeout(async()=>{
       const payload={income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode};
       try{
-        await supabase.from("finanzas_data").upsert({id:SYNC_ROW,payload,updated_at:new Date().toISOString()});
+        await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"push",pin,payload})});
       }catch(e){}
     },3000);
     return()=>clearTimeout(syncTimer.current);
-  },[income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode]); // eslint-disable-line
+  },[pin,income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode]); // eslint-disable-line
 
   const loanCapitalA = loans.filter(l=>l.status!=="inactive").reduce((s,l)=>s+l.principal,0);
   const totalDebtA   = debts.reduce((s,d)=>s+d.total,0);
   const patrimonioA  = capital + loanCapitalA - totalDebtA;
 
-  if(!unlocked) return <PinScreen onUnlock={()=>setUnlocked(true)} t={t}/>;
+  if(!unlocked) return <PinScreen onUnlock={(p)=>{setPin(p);setUnlocked(true);}} t={t}/>;
 
   if (isDesktop) return (
     <DesktopLayout tab={tab} setTab={setTab} income={income} setIncome={setIncome} expenses={expenses} setExpenses={setExpenses} debts={debts} setDebts={setDebts} loans={loans} setLoans={setLoans} goals={goals} setGoals={setGoals} payments={payments} setPayments={setPayments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} monthlyHistory={monthlyHistory} darkMode={darkMode} setDarkMode={setDarkMode} t={t}/>
