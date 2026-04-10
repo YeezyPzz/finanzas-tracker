@@ -2039,6 +2039,12 @@ export default function App() {
   const [monthlyHistory,setMonthlyHistory]=useLS("fz_history_v1", {});
   const [lastSnapMk,    setLastSnapMk]   = useLS("fz_snapmk_v1",  "");
   const syncTimer = useRef(null);
+  const latestPayload = useRef(null);
+
+  // ── Mantener ref con los datos más recientes (para guardar al cerrar) ──
+  useEffect(()=>{
+    latestPayload.current={income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode};
+  },[income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode]); // eslint-disable-line
 
   const winWidth  = useWindowWidth();
   const isDesktop = winWidth >= 960;
@@ -2063,7 +2069,7 @@ export default function App() {
     setLastSnapMk(currentMk);
   }, []); // eslint-disable-line
 
-  // ── API: pull on unlock ──
+  // ── API: pull on unlock (solo aplica si el remoto es más nuevo) ──
   useEffect(()=>{
     if(!pin) return;
     (async()=>{
@@ -2072,6 +2078,9 @@ export default function App() {
         if(!res.ok) return;
         const data=await res.json();
         if(!data||!data.payload) return;
+        // Si tenemos un guardado local más reciente, ignorar el remoto
+        const lastPush=localStorage.getItem("fz_last_push");
+        if(lastPush && data.updated_at && new Date(data.updated_at)<=new Date(lastPush)) return;
         const remote=data.payload;
         if(remote.income)        setIncome(remote.income);
         if(remote.expenses)      setExpenses(remote.expenses);
@@ -2092,7 +2101,25 @@ export default function App() {
     })();
   },[pin]); // eslint-disable-line
 
-  // ── API: push on change (debounced 3s) ──
+  // ── API: guardar al cerrar/salir de la pestaña ──
+  useEffect(()=>{
+    if(!pin) return;
+    const handleUnload=()=>{
+      if(!latestPayload.current) return;
+      const blob=new Blob([JSON.stringify({action:"push",pin,payload:latestPayload.current})],{type:"application/json"});
+      navigator.sendBeacon("/api/sync",blob);
+    };
+    window.addEventListener("visibilitychange",()=>{
+      if(document.visibilityState==="hidden") handleUnload();
+    });
+    window.addEventListener("beforeunload",handleUnload);
+    return()=>{
+      window.removeEventListener("beforeunload",handleUnload);
+      window.removeEventListener("visibilitychange",handleUnload);
+    };
+  },[pin]); // eslint-disable-line
+
+  // ── API: push on change (debounced 1.5s) ──
   useEffect(()=>{
     if(!pin) return;
     if(syncTimer.current) clearTimeout(syncTimer.current);
@@ -2100,8 +2127,9 @@ export default function App() {
       const payload={income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode};
       try{
         await fetch("/api/sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"push",pin,payload})});
+        localStorage.setItem("fz_last_push",new Date().toISOString());
       }catch(e){}
-    },3000);
+    },1500);
     return()=>clearTimeout(syncTimer.current);
   },[pin,income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode]); // eslint-disable-line
 
