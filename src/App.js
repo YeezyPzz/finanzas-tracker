@@ -677,6 +677,22 @@ function IngresosTab({income,setIncome,loans,setLoans,expenses,payments,loanPaym
         )}
       </div>
 
+      {/* Cobrado / Por cobrar este mes */}
+      <Card t={t} style={{padding:"0.65rem 0.75rem"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.45rem"}}>
+          <span style={{fontSize:"0.62rem",fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:t.textTertiary}}>Intereses este mes</span>
+          {uncollected.length===0
+            ? <span style={{fontSize:"0.62rem",fontWeight:700,color:"#00B894"}}>Todo cobrado ✓</span>
+            : <span style={{fontSize:"0.62rem",fontWeight:700,color:"#FFEAA7"}}>{uncollected.length} por cobrar</span>
+          }
+        </div>
+        <ProgBar value={collectedIncome} max={loanIncome||1} color="#00B894" t={t} height={6}/>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:"0.4rem",fontSize:"0.72rem"}}>
+          <span style={{color:"#00B894",fontWeight:700}}>{eur(collectedIncome)} cobrado</span>
+          <span style={{color:uncollected.length>0?"#FFEAA7":t.textTertiary,fontWeight:600}}>{eur(loanIncome-collectedIncome)} por cobrar</span>
+        </div>
+      </Card>
+
       {/* Loans grid */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.6rem"}}>
         {loans.map(l=>{
