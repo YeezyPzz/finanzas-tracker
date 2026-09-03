@@ -533,7 +533,7 @@ function ResumenTab({income,expenses,loans,debts,goals,payments,capital,monthlyH
 }
 
 // ─── INGRESOS TAB ─────────────────────────────────────────────────────────────
-function IngresosTab({income,setIncome,loans,setLoans,expenses,payments,loanPayments,setLoanPayments,capital,setCapital,friendLoans,setFriendLoans,loanCollectionLog,setLoanCollectionLog,accounts,setAccounts,t}) {
+function IngresosTab({income,setIncome,loans,setLoans,expenses,payments,loanPayments,setLoanPayments,nominaReceived,setNominaReceived,capital,setCapital,friendLoans,setFriendLoans,loanCollectionLog,setLoanCollectionLog,accounts,setAccounts,t}) {
   const [addingInc,    setAddingInc]    = useState(false);
   const [addingLoan,   setAddingLoan]   = useState(false);
   const [incForm,      setIncForm]      = useState({label:"",amount:""});
@@ -554,6 +554,7 @@ function IngresosTab({income,setIncome,loans,setLoans,expenses,payments,loanPaym
   const paidTotal   = expenses.filter(e=>paid[e.id]).reduce((s,e)=>s+e.amount,0);
   const uncollected = activeLoans.filter(l=>!monthLP[l.id]);
   const collectedIncome = activeLoans.filter(l=>monthLP[l.id]).reduce((s,l)=>s+l.principal*(l.rate/100),0);
+  const nominaThisMonth = !!(nominaReceived||{})[thisMonth];
 
   const getDate = (id) => collectDates[id]||today();
 
@@ -623,10 +624,10 @@ function IngresosTab({income,setIncome,loans,setLoans,expenses,payments,loanPaym
             <div style={{fontWeight:600,color:t.green}}>{eur(collectedIncome)}</div>
           </div>
         </div>
-        <div style={{marginTop:"0.75rem"}}>
-          <button onClick={()=>setCapital(v=>v+totalIncome)}
-            style={{width:"100%",background:t.greenBg,border:`1px solid ${t.green}44`,borderRadius:"9px",padding:"0.55rem",color:t.green,fontSize:"0.73rem",fontWeight:700,cursor:"pointer"}}>
-            + Recibir nómina {eur(totalIncome)}
+        <div style={{marginTop:"0.75rem",display:"flex",flexDirection:"column",gap:"0.35rem"}}>
+          <button onClick={()=>{setCapital(v=>v+totalIncome);setNominaReceived(p=>({...p,[thisMonth]:true}));}}
+            style={{width:"100%",background:nominaThisMonth?"#00B89415":t.greenBg,border:`1px solid ${nominaThisMonth?"#00B89440":t.green+"44"}`,borderRadius:"9px",padding:"0.55rem",color:t.green,fontSize:"0.73rem",fontWeight:700,cursor:"pointer"}}>
+            {nominaThisMonth?"✓ Nómina cobrada este mes":"+ Recibir nómina"} {eur(totalIncome)}
           </button>
         </div>
       </Card>
@@ -839,6 +840,16 @@ function IngresosTab({income,setIncome,loans,setLoans,expenses,payments,loanPaym
 
       <AccountsCard accounts={accounts} setAccounts={setAccounts} capital={capital} t={t}/>
       <FriendLoansCard friendLoans={friendLoans} setFriendLoans={setFriendLoans} t={t}/>
+
+      {/* Reiniciar mes de ingresos */}
+      <SmBtn onClick={()=>{
+        if(window.confirm("¿Reiniciar cobros del mes?\nSe borrarán los intereses cobrados y la nómina marcada como cobrada.\nEl capital no cambia.")) {
+          setLoanPayments(p=>({...p,[thisMonth]:{}}));
+          setNominaReceived(p=>({...p,[thisMonth]:false}));
+        }
+      }} t={t}>
+        Reiniciar cobros del mes
+      </SmBtn>
     </div>
   );
 }
@@ -1992,7 +2003,7 @@ function DesktopLayout({tab,setTab,income,setIncome,expenses,setExpenses,debts,s
       {/* ── MAIN CONTENT ── */}
       <div style={{flex:1,padding:"1.75rem 2rem",width:"100%",maxWidth:tab==="resumen"?1200:760,boxSizing:"border-box",margin:"0 auto"}}>
         {tab==="resumen"  &&<ResumenTab income={income} expenses={expenses} loans={loans} debts={debts} goals={goals} payments={payments} capital={capital} monthlyHistory={monthlyHistory} t={t} wide={true}/>}
-        {tab==="ingresos" &&<IngresosTab income={income} setIncome={setIncome} loans={loans} setLoans={setLoans} expenses={expenses} payments={payments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} t={t}/>}
+        {tab==="ingresos" &&<IngresosTab income={income} setIncome={setIncome} loans={loans} setLoans={setLoans} expenses={expenses} payments={payments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} nominaReceived={nominaReceived} setNominaReceived={setNominaReceived} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} t={t}/>}
         {tab==="gastos"   &&<GastosTab expenses={expenses} setExpenses={setExpenses} payments={payments} setPayments={setPayments} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} capital={capital} setCapital={setCapital} t={t}/>}
         {tab==="deudas"   &&<DeudasTab debts={debts} setDebts={setDebts} capital={capital} t={t}/>}
         {tab==="plan"     &&<PlanTab income={income} expenses={expenses} debts={debts} loans={loans} goals={goals} setGoals={setGoals} capital={capital} monthlyHistory={monthlyHistory} t={t}/>}
@@ -2015,6 +2026,7 @@ export default function App() {
   const [goals,         setGoals]        = useLS("fz_goals_v4",   DEFAULT_GOALS);
   const [payments,      setPayments]     = useLS("fz_payments_v3",{});
   const [loanPayments,  setLoanPayments] = useLS("fz_loanpay_v1", {});
+  const [nominaReceived,setNominaReceived]= useLS("fz_nomina_recv_v1",{});
   const [unexpectedExp, setUnexpectedExp]= useLS("fz_unexp_v1",   {});
   const [funLimit,      setFunLimit]     = useLS("fz_funlim_v1",  100);
   const [capital,       setCapital]      = useLS("fz_capital_v3", 0);
@@ -2063,7 +2075,8 @@ export default function App() {
         if(remote.loans)         setLoans(remote.loans);
         if(remote.goals)         setGoals(remote.goals);
         if(remote.payments)      setPayments(remote.payments);
-        if(remote.loanPayments)  setLoanPayments(remote.loanPayments);
+        if(remote.loanPayments)   setLoanPayments(remote.loanPayments);
+        if(remote.nominaReceived) setNominaReceived(remote.nominaReceived);
         if(remote.unexpectedExp) setUnexpectedExp(remote.unexpectedExp);
         if(remote.funLimit!=null)setFunLimit(remote.funLimit);
         if(remote.capital!=null) setCapital(remote.capital);
@@ -2080,13 +2093,13 @@ export default function App() {
   useEffect(()=>{
     if(syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current=setTimeout(async()=>{
-      const payload={income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode};
+      const payload={income,expenses,debts,loans,goals,payments,loanPayments,nominaReceived,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode};
       try{
         await supabase.from("finanzas_data").upsert({id:SYNC_ROW,payload,updated_at:new Date().toISOString()});
       }catch(e){}
     },3000);
     return()=>clearTimeout(syncTimer.current);
-  },[income,expenses,debts,loans,goals,payments,loanPayments,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode]); // eslint-disable-line
+  },[income,expenses,debts,loans,goals,payments,loanPayments,nominaReceived,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode]); // eslint-disable-line
 
   const loanCapitalA = loans.filter(l=>l.status!=="inactive").reduce((s,l)=>s+l.principal,0);
   const totalDebtA   = debts.reduce((s,d)=>s+d.total,0);
@@ -2122,7 +2135,7 @@ export default function App() {
       </div>
       <div style={{padding:"1.1rem"}}>
         {tab==="resumen"  &&<ResumenTab income={income} expenses={expenses} loans={loans} debts={debts} goals={goals} payments={payments} capital={capital} monthlyHistory={monthlyHistory} t={t}/>}
-        {tab==="ingresos" &&<IngresosTab income={income} setIncome={setIncome} loans={loans} setLoans={setLoans} expenses={expenses} payments={payments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} t={t}/>}
+        {tab==="ingresos" &&<IngresosTab income={income} setIncome={setIncome} loans={loans} setLoans={setLoans} expenses={expenses} payments={payments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} nominaReceived={nominaReceived} setNominaReceived={setNominaReceived} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} t={t}/>}
         {tab==="gastos"   &&<GastosTab expenses={expenses} setExpenses={setExpenses} payments={payments} setPayments={setPayments} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} capital={capital} setCapital={setCapital} t={t}/>}
         {tab==="deudas"   &&<DeudasTab debts={debts} setDebts={setDebts} capital={capital} t={t}/>}
         {tab==="plan"     &&<PlanTab income={income} expenses={expenses} debts={debts} loans={loans} goals={goals} setGoals={setGoals} capital={capital} monthlyHistory={monthlyHistory} t={t}/>}
