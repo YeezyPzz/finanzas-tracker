@@ -1035,7 +1035,7 @@ function FriendLoansCard({friendLoans,setFriendLoans,t}) {
 }
 
 // ─── GASTOS TAB ───────────────────────────────────────────────────────────────
-function GastosTab({expenses,setExpenses,payments,setPayments,unexpectedExp,setUnexpectedExp,funLimit,setFunLimit,capital,setCapital,t}) {
+function GastosTab({expenses,setExpenses,payments,setPayments,unexpectedExp,setUnexpectedExp,funLimit,setFunLimit,planes,setPlanes,capital,setCapital,t}) {
   const [adding,       setAdding]     = useState(false);
   const [form,         setForm]       = useState({label:"",amount:"",cat:"fijo"});
   const [editId,       setEditId]     = useState(null);
@@ -1044,6 +1044,8 @@ function GastosTab({expenses,setExpenses,payments,setPayments,unexpectedExp,setU
   const [addingUnexp,  setAddingUnexp]= useState(false);
   const [editingLimit, setEditingLimit]=useState(false);
   const [limitInput,   setLimitInput] = useState(funLimit);
+  const [addingPlan,   setAddingPlan] = useState(false);
+  const [planForm,     setPlanForm]   = useState({label:"",amount:""});
 
   const thisMonth = mk();
   const paid      = payments[thisMonth]||{};
@@ -1119,6 +1121,15 @@ function GastosTab({expenses,setExpenses,payments,setPayments,unexpectedExp,setU
     setUnexpectedExp(p=>({...p,[thisMonth]:[...(p[thisMonth]||[]),entry]}));
     setCapital(v=>v-entry.amount);
   };
+
+  const planesTotal = (planes||[]).reduce((s,p)=>s+p.amount,0);
+  const capitalTrasPlan = capital - planesTotal;
+  const addPlan=()=>{
+    if(!planForm.label||!planForm.amount) return;
+    setPlanes(p=>[...p,{id:Date.now().toString(),label:planForm.label,amount:+planForm.amount}]);
+    setPlanForm({label:"",amount:""});setAddingPlan(false);
+  };
+  const deletePlan=(id)=>setPlanes(p=>p.filter(x=>x.id!==id));
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:"0.85rem"}}>
@@ -1299,6 +1310,49 @@ function GastosTab({expenses,setExpenses,payments,setPayments,unexpectedExp,setU
           </div>
         ):(
           <SmBtn onClick={()=>setAdding(true)} t={t}>+ Nuevo gasto fijo</SmBtn>
+        )}
+      </Card>
+
+      {/* Planes — gastos futuros no confirmados */}
+      <Card t={t} style={{border:`1px solid ${capitalTrasPlan<0?"#FF6B6B44":"#FD79A844"}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.6rem"}}>
+          <div>
+            <Lbl t={t}>Planes · lo que vas a gastar</Lbl>
+            <div style={{fontSize:"0.62rem",color:t.textTertiary}}>no se descuenta hasta que lo confirmes</div>
+          </div>
+          {(planes||[]).length>0&&<span style={{fontSize:"0.8rem",fontWeight:700,color:"#FD79A8"}}>{eur(planesTotal)}</span>}
+        </div>
+
+        {(planes||[]).length>0&&(
+          <>
+            {(planes||[]).map(p=>(
+              <div key={p.id} style={{display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.45rem"}}>
+                <div style={{flex:1,fontSize:"0.85rem",color:t.text}}>{p.label}</div>
+                <span style={{fontSize:"0.9rem",fontWeight:600,color:"#FD79A8",flexShrink:0}}>{eur(p.amount)}</span>
+                <button onClick={()=>deletePlan(p.id)} style={{background:"none",border:"none",color:t.textTertiary,fontSize:"1rem",cursor:"pointer",lineHeight:1,flexShrink:0}}>✕</button>
+              </div>
+            ))}
+            <div style={{height:"1px",background:t.border,margin:"0.5rem 0"}}/>
+            <ProgBar value={Math.max(0,capital-planesTotal)} max={Math.max(capital,1)} color="#FD79A8" t={t} height={6}/>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:"0.4rem",fontSize:"0.72rem"}}>
+              <span style={{color:t.textTertiary}}>Capital ahora: <strong style={{color:t.text}}>{eur(capital)}</strong></span>
+              <span style={{color:capitalTrasPlan<0?"#FF6B6B":"#FD79A8",fontWeight:700}}>
+                Te quedaría: {eur(capitalTrasPlan)}
+              </span>
+            </div>
+            {capitalTrasPlan<0&&<div style={{marginTop:"0.4rem",fontSize:"0.7rem",color:"#FF6B6B",fontWeight:600,background:"#FF6B6B12",padding:"0.4rem 0.6rem",borderRadius:"8px"}}>Te pasas por {eur(Math.abs(capitalTrasPlan))} — revisa tus planes</div>}
+          </>
+        )}
+
+        {addingPlan?(
+          <div style={{display:"flex",gap:"0.35rem",marginTop:"0.5rem"}}>
+            <Inp placeholder="Qué vas a gastar" value={planForm.label} onChange={e=>setPlanForm(p=>({...p,label:e.target.value}))} t={t} style={{flex:2}}/>
+            <Inp placeholder="€" type="number" value={planForm.amount} onChange={e=>setPlanForm(p=>({...p,amount:e.target.value}))} t={t} style={{flex:1}}/>
+            <PrimBtn onClick={addPlan} t={t}>OK</PrimBtn>
+            <SmBtn onClick={()=>setAddingPlan(false)} t={t}>✕</SmBtn>
+          </div>
+        ):(
+          <SmBtn onClick={()=>setAddingPlan(true)} t={t} style={{marginTop:(planes||[]).length>0?"0.5rem":"0"}}>+ Añadir plan</SmBtn>
         )}
       </Card>
 
@@ -2004,7 +2058,7 @@ function DesktopLayout({tab,setTab,income,setIncome,expenses,setExpenses,debts,s
       <div style={{flex:1,padding:"1.75rem 2rem",width:"100%",maxWidth:tab==="resumen"?1200:760,boxSizing:"border-box",margin:"0 auto"}}>
         {tab==="resumen"  &&<ResumenTab income={income} expenses={expenses} loans={loans} debts={debts} goals={goals} payments={payments} capital={capital} monthlyHistory={monthlyHistory} t={t} wide={true}/>}
         {tab==="ingresos" &&<IngresosTab income={income} setIncome={setIncome} loans={loans} setLoans={setLoans} expenses={expenses} payments={payments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} nominaReceived={nominaReceived} setNominaReceived={setNominaReceived} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} t={t}/>}
-        {tab==="gastos"   &&<GastosTab expenses={expenses} setExpenses={setExpenses} payments={payments} setPayments={setPayments} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} capital={capital} setCapital={setCapital} t={t}/>}
+        {tab==="gastos"   &&<GastosTab expenses={expenses} setExpenses={setExpenses} payments={payments} setPayments={setPayments} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} planes={planes} setPlanes={setPlanes} capital={capital} setCapital={setCapital} t={t}/>}
         {tab==="deudas"   &&<DeudasTab debts={debts} setDebts={setDebts} capital={capital} t={t}/>}
         {tab==="plan"     &&<PlanTab income={income} expenses={expenses} debts={debts} loans={loans} goals={goals} setGoals={setGoals} capital={capital} monthlyHistory={monthlyHistory} t={t}/>}
       </div>
@@ -2027,6 +2081,7 @@ export default function App() {
   const [payments,      setPayments]     = useLS("fz_payments_v3",{});
   const [loanPayments,  setLoanPayments] = useLS("fz_loanpay_v1", {});
   const [nominaReceived,setNominaReceived]= useLS("fz_nomina_recv_v1",{});
+  const [planes,        setPlanes]        = useLS("fz_planes_v1",     []);
   const [unexpectedExp, setUnexpectedExp]= useLS("fz_unexp_v1",   {});
   const [funLimit,      setFunLimit]     = useLS("fz_funlim_v1",  100);
   const [capital,       setCapital]      = useLS("fz_capital_v3", 0);
@@ -2077,6 +2132,7 @@ export default function App() {
         if(remote.payments)      setPayments(remote.payments);
         if(remote.loanPayments)   setLoanPayments(remote.loanPayments);
         if(remote.nominaReceived) setNominaReceived(remote.nominaReceived);
+        if(remote.planes)         setPlanes(remote.planes);
         if(remote.unexpectedExp) setUnexpectedExp(remote.unexpectedExp);
         if(remote.funLimit!=null)setFunLimit(remote.funLimit);
         if(remote.capital!=null) setCapital(remote.capital);
@@ -2093,13 +2149,13 @@ export default function App() {
   useEffect(()=>{
     if(syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current=setTimeout(async()=>{
-      const payload={income,expenses,debts,loans,goals,payments,loanPayments,nominaReceived,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode};
+      const payload={income,expenses,debts,loans,goals,payments,loanPayments,nominaReceived,planes,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode};
       try{
         await supabase.from("finanzas_data").upsert({id:SYNC_ROW,payload,updated_at:new Date().toISOString()});
       }catch(e){}
     },3000);
     return()=>clearTimeout(syncTimer.current);
-  },[income,expenses,debts,loans,goals,payments,loanPayments,nominaReceived,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode]); // eslint-disable-line
+  },[income,expenses,debts,loans,goals,payments,loanPayments,nominaReceived,planes,unexpectedExp,funLimit,capital,friendLoans,loanCollectionLog,accounts,monthlyHistory,darkMode]); // eslint-disable-line
 
   const loanCapitalA = loans.filter(l=>l.status!=="inactive").reduce((s,l)=>s+l.principal,0);
   const totalDebtA   = debts.reduce((s,d)=>s+d.total,0);
@@ -2136,7 +2192,7 @@ export default function App() {
       <div style={{padding:"1.1rem"}}>
         {tab==="resumen"  &&<ResumenTab income={income} expenses={expenses} loans={loans} debts={debts} goals={goals} payments={payments} capital={capital} monthlyHistory={monthlyHistory} t={t}/>}
         {tab==="ingresos" &&<IngresosTab income={income} setIncome={setIncome} loans={loans} setLoans={setLoans} expenses={expenses} payments={payments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} nominaReceived={nominaReceived} setNominaReceived={setNominaReceived} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} t={t}/>}
-        {tab==="gastos"   &&<GastosTab expenses={expenses} setExpenses={setExpenses} payments={payments} setPayments={setPayments} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} capital={capital} setCapital={setCapital} t={t}/>}
+        {tab==="gastos"   &&<GastosTab expenses={expenses} setExpenses={setExpenses} payments={payments} setPayments={setPayments} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} planes={planes} setPlanes={setPlanes} capital={capital} setCapital={setCapital} t={t}/>}
         {tab==="deudas"   &&<DeudasTab debts={debts} setDebts={setDebts} capital={capital} t={t}/>}
         {tab==="plan"     &&<PlanTab income={income} expenses={expenses} debts={debts} loans={loans} goals={goals} setGoals={setGoals} capital={capital} monthlyHistory={monthlyHistory} t={t}/>}
       </div>
