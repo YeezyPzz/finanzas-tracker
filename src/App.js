@@ -1996,7 +1996,7 @@ function PlanTab({income,expenses,debts,loans,goals,setGoals,capital,monthlyHist
 }
 
 // ─── DESKTOP LAYOUT ───────────────────────────────────────────────────────────
-function DesktopLayout({tab,setTab,income,setIncome,expenses,setExpenses,debts,setDebts,loans,setLoans,goals,setGoals,payments,setPayments,loanPayments,setLoanPayments,unexpectedExp,setUnexpectedExp,funLimit,setFunLimit,capital,setCapital,friendLoans,setFriendLoans,loanCollectionLog,setLoanCollectionLog,accounts,setAccounts,monthlyHistory,darkMode,setDarkMode,t}) {
+function DesktopLayout({tab,setTab,income,setIncome,expenses,setExpenses,debts,setDebts,loans,setLoans,goals,setGoals,payments,setPayments,loanPayments,setLoanPayments,nominaReceived,setNominaReceived,planes,setPlanes,unexpectedExp,setUnexpectedExp,funLimit,setFunLimit,capital,setCapital,friendLoans,setFriendLoans,loanCollectionLog,setLoanCollectionLog,accounts,setAccounts,monthlyHistory,darkMode,setDarkMode,t}) {
   const TABS=[{id:"resumen",label:"Resumen"},{id:"ingresos",label:"Ingresos"},{id:"gastos",label:"Gastos"},{id:"deudas",label:"Deudas"},{id:"plan",label:"Plan"}];
   const loanIncome  = loans.filter(l=>l.status!=="inactive").reduce((s,l)=>s+l.principal*(l.rate/100),0);
   const loanCapitalD= loans.filter(l=>l.status!=="inactive").reduce((s,l)=>s+l.principal,0);
@@ -2164,7 +2164,7 @@ export default function App() {
   if(!unlocked) return <PinScreen onUnlock={()=>setUnlocked(true)} t={t}/>;
 
   if (isDesktop) return (
-    <DesktopLayout tab={tab} setTab={setTab} income={income} setIncome={setIncome} expenses={expenses} setExpenses={setExpenses} debts={debts} setDebts={setDebts} loans={loans} setLoans={setLoans} goals={goals} setGoals={setGoals} payments={payments} setPayments={setPayments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} monthlyHistory={monthlyHistory} darkMode={darkMode} setDarkMode={setDarkMode} t={t}/>
+    <DesktopLayout tab={tab} setTab={setTab} income={income} setIncome={setIncome} expenses={expenses} setExpenses={setExpenses} debts={debts} setDebts={setDebts} loans={loans} setLoans={setLoans} goals={goals} setGoals={setGoals} payments={payments} setPayments={setPayments} loanPayments={loanPayments} setLoanPayments={setLoanPayments} nominaReceived={nominaReceived} setNominaReceived={setNominaReceived} planes={planes} setPlanes={setPlanes} unexpectedExp={unexpectedExp} setUnexpectedExp={setUnexpectedExp} funLimit={funLimit} setFunLimit={setFunLimit} capital={capital} setCapital={setCapital} friendLoans={friendLoans} setFriendLoans={setFriendLoans} loanCollectionLog={loanCollectionLog} setLoanCollectionLog={setLoanCollectionLog} accounts={accounts} setAccounts={setAccounts} monthlyHistory={monthlyHistory} darkMode={darkMode} setDarkMode={setDarkMode} t={t}/>
   );
 
   return(
